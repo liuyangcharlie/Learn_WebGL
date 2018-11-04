@@ -1,4 +1,4 @@
-# Start using WebGL
+# Start hacking WebGL
 
 ## Concepts
 
@@ -50,19 +50,19 @@ gl.clear(gl.COLOR_BUFFER_BIT);
 
 Only a handful of method in the context do actual drawing, other methods are used to set/query the WebGL states.
 
-    >This is why WebGL/OpenGL is often called a state machine.
+    > This is why WebGL/OpenGL is often called a state machine.
 
 And the input of this state machine is **the data and the commands**, and output should be the pixels(?) into the frame buffer(?).
 
 For example, the color masking in WebGL.
 
-    >WebGL is not only a state machine, it is also a graphics **pipeline**. This means that graphics operations in WebGL are done in a certain order, where the output of each operation serves as the input of the next. 
+    > WebGL is not only a state machine, it is also a graphics **pipeline**. This means that graphics operations in WebGL are done in a certain order, where the output of each operation serves as the input of the next. 
 
 The word **pipeline** here is really important. As the quote says, the operations are done in a certain order everytime(or every frame in the animation) when we are trying to render the data into pixels on the screen finally. The state could also be changed in each frame.
 
 Another example operation method we need to talk about here is [`scissoring`](https://developer.mozilla.org/en-US/docs/Learn/WebGL/By_example/Basic_scissoring). The `scissor()` method defines a mask that only allows `pixels` inside the specified rectangular area to be updated.
 
-    >A pixel is a picture element (in practice, a point) on the screen, or a single element of the drawing buffer, that area in memory that holds your pixel data (such as RGBA color components). A fragment refers to the pixel while it is being handled by the WebGL pipeline.
+    > A pixel is a picture element (in practice, a point) on the screen, or a single element of the drawing buffer, that area in memory that holds your pixel data (such as RGBA color components). A fragment refers to the pixel while it is being handled by the WebGL pipeline.
 
 So simply speaking, the fragment is the pixel being processed in the WebGL pipeline. The final state of fragment is the pixel in the drawing buffer.
 
@@ -143,7 +143,9 @@ For those machines that does not supported OpenGL 2.0, there is a way of fallbac
 
 #### Graphic Pipeline
 The graph below roughly shows the graphics pipeline.
+
 ![from http://duriansoftware.com/joe/An-intro-to-modern-OpenGL.-Chapter-1:-The-Graphics-Pipeline.html ](../img/gl1-pipeline-01.png)
+
 (from http://duriansoftware.com/joe/An-intro-to-modern-OpenGL.-Chapter-1:-The-Graphics-Pipeline.htm )
 
 ~~The input of WebGL(i.e. the state machine) has been mentioned before.~~
@@ -170,29 +172,68 @@ The **triangles** in the pipeline are vital elements in the pipeline where they 
 
     Textures are commonly used to map texture images onto surfaces. They can also be used as lookup tables for precalculated functions or as datasets for various kinds of effects.
 
-- The vertex shader
-    > The GPU begins by reading each selected vertex out of the vertex array and running it through the vertex shader, a program that takes a set of vertex attributes as inputs and outputs a new set of attributes, referred to as varying values, that get fed to the rasterizer.
+- [The vertex shader](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Adding_2D_content_to_a_WebGL_context#Vertex_shader)
+    > The GPU begins by reading each selected vertex out of the vertex array and running it through the vertex shader, a program that takes a set of vertex attributes as inputs and outputs a new set of attributes, referred to as [varying values](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Data#Varyings), that get fed to the rasterizer.
 
      The **vertex shader calculates the projected position of the vertex in screen space**.
 
-     > The vertex shader can also generate other varying outputs, such as a color or texture coordinates, for the rasterizer to blend across the surface of the triangles connecting the vertex.
+     Or let's say, the job of the vertex shaders is:
+
+     > Its job is to transform the input vertex **from its original coordinate system** into **the clipspace coordinate system** used by WebGL, in which **each axis has a range from -1.0 to 1.0**, regardless of aspect ratio, actual size, or any other factors.
+
+     > The vertex shader must perform the needed transforms on the vertex's position, make any other adjustments or calculations it needs to make on a per-vertex basis, then **return the transformed vertex by saving it in a special variable provided by GLSL, called `gl_Position`**.
+
+     > The vertex shader can also generate other [varying](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Data#Varyings) outputs, such as a color or texture coordinates, for the rasterizer to blend across the surface of the triangles connecting the vertex.
+
+     > Our vertex shader below receives vertex position values from an attribute we define called aVertexPosition. That position is then multiplied by two 4x4 matrices we provide called uProjectionMatrix and uModelViewMatrix; gl_Position is set to the result.
+
+     ```javascript
+	 // Vertex shader program
+  	 const vsSource = `
+     	attribute vec4 aVertexPosition;
+
+		uniform mat4 uModelViewMatrix;
+		uniform mat4 uProjectionMatrix;
+
+		void main() {
+		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+		}
+	  `;
+     ```
+
+     And some other stuff like handling lighting, textures, etc., which will be talked about later.
 
 - Triangle assembly
     This step in the pipeline is to take the vertices in the order specified by the **element array** and grouping them to connect the projected vertices to form triangles.
+
     ![Triangle assembly](../img/gl1-triangle-assembly-01.png)
+
     The vertices can be grouped in a few different ways shown above.
 
 - Rasterization
     The triangles from former steps are the input of rasterizer.
     > The rasterizer takes each triangle, clips it and discards parts that are outside of the screen, and breaks the remaining visible parts into pixel-sized fragments.
-    ![Rasterization](gl1-rasterization-01.png)
-    > As mentioned above, the vertex shader's varying outputs are also interpolated across the rasterized surface of each triangle, **assigning a smooth gradient of values to each fragment.** For example, if the vertex shader assigns a color value to each vertex, the rasterizer will blend those colors across the pixelated surface as shown in the diagram.
+
+    ![Rasterization](../img/gl1-rasterization-01.png)
+
+    > As mentioned above, the vertex shader's [varying](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Data#Varyings) outputs are also interpolated across the rasterized surface of each triangle, **assigning a smooth gradient of values to each fragment.** For example, if the vertex shader assigns a color value to each vertex, the rasterizer will blend those colors across the pixelated surface as shown in the diagram.
 
 - The fragment shader
     The fragments generated by `Rasterization` then pass through another program called the fragment shader.
+
+	> The fragment shader is called once for every pixel on each shape to be drawn, after the shape's vertices have been processed by the vertex shader. Its job is to determine **the color of that pixel** by figuring out which [texel](https://en.wikipedia.org/wiki/Texel_(graphics)) (that is, **the pixel from within the shape's texture**) to apply to the pixel, getting that texel's color, then applying the appropriate **lighting to the color**.
+
+	The color of the pixel will then be stored in the variable `gl_FragColor`.
+
     > It outputs color and depth values that then get drawn into the framebuffer. Common fragment shader operations include texture mapping and lighting.
 
     > Since the fragment shader runs **independently** for every pixel drawn, it **can perform the most sophisticated special effects**; however, it is also the most **performance-sensitive part** of the graphics pipeline.
+
+- Shader program
+   Together, a set of vertex and fragment shaders is called a shader program.
+ 
+    A shader program processes the original input data(vertices info) and produce the **output for the screen(the positions of the pixels and their colors)**:
+    > **A shader program take information about the vertices that make up a shape and generates the data needed to render the pixels onto the screen: namely, the positions of the pixels and their colors.**
 
 - Framebuffers, testing, and blending
     > A framebuffer is the final destination for the rendering job's output, which the content of pixels will be displayed on the screen.
@@ -204,11 +245,16 @@ After all these operations in a pipeline, a single "draw" call in OpenGL is done
 
 
 ### Animation
-When animating, the states of the WebGL state machine may not be changing all the time, sometimes, it is initialized at first and then constantly drawing/rendering in every frame using `time`/`requestAnimationFrame`
+When animating, the states of the WebGL state machine may not be changing all the time, sometimes, it is initialized at first and then constantly drawing/rendering in every frame using `timer`/`requestAnimationFrame`
 
 #### Colors
 - [Color masking](https://developer.mozilla.org/en-US/docs/Learn/WebGL/By_example/Color_masking)
     Color masking in WebGL demonstrates the basics of color theory. So, by masking off the blue and green channels, you are only allowing the red component of pixels to be updated, and therefore it is as if you were looking through a red tinted glass. Color masking gives you fine control of updating pixel values on the screen.
+
+### Camera
+
+
+### Scene
 
 ### Animation with WebGL
 
