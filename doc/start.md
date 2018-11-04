@@ -9,6 +9,8 @@
 visual effects, such as lighting, texturing, shadows
 
 ### WebGL
+> In reality WebGL is just a rasterization engine.
+
 WebGL uses GLSL to communicate with the graphics hardware(GPU).
 
 With WebGL, 2D and 3D graphics, image processing, procedural texturing, terrain generation, visual effects such as reflections, refraction, smoke, fire, and fluids, or even non-graphic general computing that takes advantage of powerful GPU features, are all possible.
@@ -116,6 +118,25 @@ When setting the canvas to a specific size, we set `cavas.width` to the clientWi
 Here is a good introduction on GLSL in detail: [GLSL: An Introduction](http://nehe.gamedev.net/article/glsl_an_introduction/25007/). It is recommended to read it first.
 
 #### Buffers in WebGL
+> Buffers are arrays of binary data you upload to the GPU.
+
+Usually buffers contain things like positions, normals(法向量), texture coordinates, vertex colors, etc although you're free to put anything you want in them.
+
+#### Attributes
+> Attributes are used to specify how to pull data out of your buffers and provide them to your vertex shader.
+
+#### Uniforms
+> Uniforms are effectively global variables you set before you execute your shader program.
+
+#### Textures
+> Textures are arrays of data you can randomly access in your shader program. 
+
+The most common thing to put in a texture is image data but textures are just data and can just as easily contain something other than colors.
+
+#### Varyings
+> Varyings are a way for a vertex shader to pass data to a fragment shader. 
+
+Depending on what is being rendered, points, lines, or triangles, the values set on a varying by a vertex shader will be interpolated while executing the fragment shader.
 
 - Drawing Buffer
 
@@ -181,22 +202,31 @@ The **triangles** in the pipeline are vital elements in the pipeline where they 
 
      > Its job is to transform the input vertex **from its original coordinate system** into **the clipspace coordinate system** used by WebGL, in which **each axis has a range from -1.0 to 1.0**, regardless of aspect ratio, actual size, or any other factors.
 
+     `[clipspace](https://www.opengl.org/discussion_boards/showthread.php/133926-What-exactly-does-clip-space-mean)` 
+
+     Clipspace coordinates always go from -1 to +1 no matter what size your canvas is.
+
+     ![clipspace](../img/clipspace.svg)
+
      > The vertex shader must perform the needed transforms on the vertex's position, make any other adjustments or calculations it needs to make on a per-vertex basis, then **return the transformed vertex by saving it in a special variable provided by GLSL, called `gl_Position`**.
 
      > The vertex shader can also generate other [varying](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Data#Varyings) outputs, such as a color or texture coordinates, for the rasterizer to blend across the surface of the triangles connecting the vertex.
 
-     > Our vertex shader below receives vertex position values from an attribute we define called aVertexPosition. That position is then multiplied by two 4x4 matrices we provide called uProjectionMatrix and uModelViewMatrix; gl_Position is set to the result.
+     > Our vertex shader below receives vertex position values from an attribute we define called aVertexPosition. That position is then multiplied by two 4x4 matrices we provide called uProjectionMatrix and uModelViewMatrix; `gl_Position` is set to the result.
 
      ```javascript
 	 // Vertex shader program
   	 const vsSource = `
+        // // an attribute will receive data from a buffer
      	attribute vec4 aVertexPosition;
 
 		uniform mat4 uModelViewMatrix;
 		uniform mat4 uProjectionMatrix;
 
+        // all shaders have a main function
 		void main() {
-		  gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+            // vertex shader will set this variable as the result produced by itself.
+            gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
 		}
 	  `;
      ```
@@ -229,11 +259,83 @@ The **triangles** in the pipeline are vital elements in the pipeline where they 
 
     > Since the fragment shader runs **independently** for every pixel drawn, it **can perform the most sophisticated special effects**; however, it is also the most **performance-sensitive part** of the graphics pipeline.
 
+    ```javascript
+    // an example of fragment shader
+	const fsSource = `
+        // fragment shaders don't have a default precision so we need
+        // to pick one. mediump is a good default. It means "medium precision"
+        precision mediump float;
+
+        // all shaders have a main function
+		void main() {
+            // gl_FragColor is a special variable a fragment shader
+            // is responsible for setting
+            // r, g, b, a
+			gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+		}
+	`;
+    ```
+
 - Shader program
    Together, a set of vertex and fragment shaders is called a shader program.
+
+   **WebGL only cares about 2 things: clipspace coordinates and colors. A Vertex shader which provides the clipspace coordinates and a fragment shader that provides the color.**
  
     A shader program processes the original input data(vertices info) and produce the **output for the screen(the positions of the pixels and their colors)**:
     > **A shader program take information about the vertices that make up a shape and generates the data needed to render the pixels onto the screen: namely, the positions of the pixels and their colors.**
+
+	The code below shows how to create a shader:
+	```javascript
+	//
+	// creates a shader of the given type, uploads the source and
+	// compiles it.
+	//
+	function loadShader(gl, type, source) {
+		const shader = gl.createShader(type);
+
+		// Send the source to the shader object
+
+		gl.shaderSource(shader, source);
+
+		// Compile the shader program
+
+		gl.compileShader(shader);
+
+		// See if it compiled successfully
+
+		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+			alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+			gl.deleteShader(shader);
+			return null;
+		}
+
+		return shader;
+	}
+
+	//
+	// Initialize a shader program, so WebGL knows how to draw our data
+	//
+	function initShaderProgram(gl, vsSource, fsSource) {
+		const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+		const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+		// Create the shader program
+
+		const shaderProgram = gl.createProgram();
+		gl.attachShader(shaderProgram, vertexShader);
+		gl.attachShader(shaderProgram, fragmentShader);
+		gl.linkProgram(shaderProgram);
+
+		// If creating the shader program failed, alert
+
+		if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+			alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
+			return null;
+		}
+
+		return shaderProgram;
+	}
+	```
 
 - Framebuffers, testing, and blending
     > A framebuffer is the final destination for the rendering job's output, which the content of pixels will be displayed on the screen.
