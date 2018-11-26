@@ -215,9 +215,9 @@ The **triangles** in the pipeline are vital elements in the pipeline where they 
      > Our vertex shader below receives vertex position values from an attribute we define called aVertexPosition. That position is then multiplied by two 4x4 matrices we provide called uProjectionMatrix and uModelViewMatrix; `gl_Position` is set to the result.
 
      ```javascript
-	 // Vertex shader program
+	 // Vertex shader
   	 const vsSource = `
-        // // an attribute will receive data from a buffer
+        // an attribute will receive data from a buffer
      	attribute vec4 aVertexPosition;
 
 		uniform mat4 uModelViewMatrix;
@@ -277,7 +277,7 @@ The **triangles** in the pipeline are vital elements in the pipeline where they 
     ```
 
 - Shader program
-   Together, a set of vertex and fragment shaders is called a shader program.
+   Together, a set of vertex and fragment shaders is called a shader program. We need to **`link`** those 2 shaders into a **`program`**
 
    **WebGL only cares about 2 things: clipspace coordinates and colors. A Vertex shader which provides the clipspace coordinates and a fragment shader that provides the color.**
  
@@ -313,13 +313,13 @@ The **triangles** in the pipeline are vital elements in the pipeline where they 
 	}
 
 	//
-	// Initialize a shader program, so WebGL knows how to draw our data
+	// Initialize a shader program using the 2 shaders in last steps, so WebGL knows how to draw our data
 	//
 	function initShaderProgram(gl, vsSource, fsSource) {
 		const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
 		const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
 
-		// Create the shader program
+		// Create the shader program, link those 2 shaders into a program
 
 		const shaderProgram = gl.createProgram();
 		gl.attachShader(shaderProgram, vertexShader);
